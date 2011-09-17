@@ -46,3 +46,11 @@ pkg
 
 # For rubinius:
 #*.rbc
+
+# Netbeans
+nbproject
+# dirty tests (convention begin with pr_)
+pr_*
+# temporary files and logs
+*.yml
+*.log

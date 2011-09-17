@@ -4,8 +4,8 @@
 require './setup'
 
 ################
-# FAKEWEB Setup
-################
+# Fakeweb Setup
+#
 unless @setup.online  # activate if not online
   # monkey patch for fakeweb. Mechanize#read_timeout doesn't work ?!?
   module FakeWeb
@@ -15,8 +15,8 @@ unless @setup.online  # activate if not online
     end
   end
   FakeWeb.allow_net_connect=false # tots els accessos se simularan
-  up=UriPathname.new :base_dir => @setup.dump_dir, :file_ext=> ".html"
-  dump_files = Dir[File.join(@setup.dump_dir,"*.html")]
+  up=UriPathname.new :base_dir => @setup.pdump_dir, :file_ext=> ".html"
+  dump_files = Dir[File.join(@setup.pdump_dir,"*.html")]
   dump_files.each do |f|
     uri = up.pathname_to_uri(f)
     FakeWeb.register_uri :any, uri, :body=>f, :content_type=>"text/html"
@@ -27,21 +27,21 @@ end
 ################
 
 ################
-# Loggers Setup
-################
+# Logger Setup
+#
 if @setup.log
   log1 = Logger.new(@setup.log_file,'weekly')
   log1.level = @setup.log_level
   log2 = Logger.new(File.expand_path("../tmp/mechanize.log",File.dirname(__FILE__)),'weekly')
-  log2.level = Logger::DEBUG
+  log2.level = @setup.log_level
 end
 ################
 
 #################
 # WebDump Setup
-#################
-if @setup.dump
-  wdumper=WebDump.new :base_dir => @setup.dump_dir, :file_ext => @setup.dump_ext
+#
+if @setup.pdump
+  wdumper=WebDump.new :base_dir => @setup.pdump_dir, :file_ext => @setup.pdump_ext
 else
   wdumper=nil
 end
@@ -49,56 +49,51 @@ end
 
 ##################
 # SimpleMap Setup
-##################
+#
 if @setup.lookup
-  LOOKUP_FILE=@setup.lookup_file
-#  puts "LOOKUP:\n"
-#  p lookup.map
-#  p lookup.reverse_data.to_a.sort {|a,b| a.to_s <=> b.to_s}
-#  puts "\nDESCONEGUTS:\n"
-#  p lookup.unmapped_keys.to_a.sort {|a,b| a.to_s <=> b.to_s}
+  lookup=YAML.load_file(@setup.lookup_file)
+  #  puts "LOOKUP:\n"
+  #  p lookup.map
+  #  p lookup.reverse_data.to_a.sort {|a,b| a.to_s <=> b.to_s}
+  #  puts "\nDESCONEGUTS:\n"
+  #  p lookup.unmapped_keys.to_a.sort {|a,b| a.to_s <=> b.to_s}
 end
 ##################
 
-##################
-# Parsed Data Dump Setup
-##################
-if @setup.saveparsed
-  EXP_FILE=@setup.saveparsed_file
-end
-##################
+######################
+# ThreadedAgent Setup
+#
+agent=Webscrutinizer::ThreadedAgent.new :maxthreads => @setup.num_threads, :logger => log1
+######################
 
-################
-# Threaded Agent
-################
-agent=Webscrutinizer::ThreadedAgent.new :maxthreads => 12, :logger => log1
-################
-
+#######################
+# WebScrutinizer Setup
+#
 ws = Webscrutinizer::Scrutinizer.new(lookup, agent, nil, 3, log1, wdumper) do |scr|
 
   #LEVELS
   scr.levels << Webscrutinizer::Level.new do |l|
-    l.uri = SEEDS[:ANUNCIS_PREVIS]
+    l.uri = @setup.seeds.ANUNCIS_PREVIS
     l.use_parser :LIST_PARSER, :ANUNCIS_PREVIS
   end
 
   scr.levels << Webscrutinizer::Level.new do |l|
-    l.uri = SEEDS[:ANUNC_LICIT]
+    l.uri = @setup.seeds.ANUNC_LICIT
     l.use_parser :LIST_PARSER, :ANUNC_LICIT
   end
 
   scr.levels << Webscrutinizer::Level.new do |l|
-    l.uri = SEEDS[:ADJUD_PROV]
+    l.uri = @setup.seeds.ADJUD_PROV
     l.use_parser :LIST_PARSER, :ADJUD_PROV
   end
 
   scr.levels << Webscrutinizer::Level.new do |l|
-    l.uri = SEEDS[:ADJUD_DEF]
+    l.uri = @setup.seeds.ADJUD_DEF
     l.use_parser :LIST_PARSER, :ADJUD_DEF
   end
 
   scr.levels << Webscrutinizer::Level.new do |l|
-    l.uri = SEEDS[:FORMALITZACIONS]
+    l.uri = @setup.seeds.FORMALITZACIONS
     l.use_parser :LIST_PARSER, :FORMALITZACIONS
   end
 
@@ -161,20 +156,40 @@ ws = Webscrutinizer::Scrutinizer.new(lookup, agent, nil, 3, log1, wdumper) do |s
   end
 
 end
+#######################
 
-# ... i comença la cosa
+###########################
+# MAIN
+###########################
 ws.scrutinize
 #ws.report
 p ws.statistics
+###########################
 
-#guarda els expedients
-File.open(EXP_FILE,'w') do |f|
-  YAML.dump(ws.receivers,f)
+##################
+# save parsed data
+#
+if @setup.saveparsed
+  File.open(@setup.saveparsed_file,'w') do |f|
+    YAML.dump(ws.receivers,f)
+  end
 end
 
-# guarda l'objecte per a persistir
-#File.open(LOOKUP_FILE,'w') do |f|
-#  YAML.dump(lookup,f)
-#end
+#####################
+# SimpleMap Teardown
+#
+if @setup.lookup
+  File.open(@setup.lookup_file,'w') do |f|
+    YAML.dump(lookup,f)
+  end
+end
+#####################
 
-log1.close
+################
+# Logger Setup
+#
+if @setup.log
+  log1.close
+  log2.close
+end
+################

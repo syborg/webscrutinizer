@@ -26,13 +26,13 @@ else
     # if false -> application uses Fakeweb to access pages
 
     # saving pages
-    c.dump = false    # if true -> accessed pages will be saved
+    c.pdump = false    # if true -> accessed pages will be saved
     # if false -> accessed pages won't be saved
     # dir where dumped files will be stored
-    c.dump_dir = File.expand_path("tmp/web_dumps","~")
+    c.pdump_dir = File.expand_path("tmp/web_dumps","~")
     # extension of dumped files. If "gz" is used they will be compressed and
     # cannot be used by Fakeweb because it needs plain files
-    c.dump_ext = ".html"
+    c.pdump_ext = ".html"
 
     # logging
     c.log = true      # if true -> log info will be saved
@@ -48,6 +48,9 @@ else
     c.lookup = true
     c.lookup_file = File.join(_dir,"tmp", _nam + "_lookup.yml")
 
+    # Threaded Agent
+    c.num_threads = 8
+    
     # Pagines inicials per scrutinitzar
     c.seeds = {
       # Informacio previa de futures licitacions

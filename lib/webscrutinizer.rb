@@ -373,6 +373,19 @@ module Webscrutinizer
       @parsers[name] = Proc.new { @parsers[used_parser].call(*args) }
     end
 
+    # Adds new uris to begin parsing
+    def seed(uri,*parsers)
+      # check argument errors
+      raise ArgumentError, "Ivalid URI" unless uri.is_a? String
+      raise ArgumentError unless parsers.all? {|p| p.is_a? Symbol}
+      
+      level = Level.new do |l|
+        l.uri = uri
+        l.use_parser *parsers
+      end
+      self.levels << level
+    end
+
     private
 
     # thread protected log:

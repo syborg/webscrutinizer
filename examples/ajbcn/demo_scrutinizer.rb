@@ -72,30 +72,11 @@ agent=Webscrutinizer::ThreadedAgent.new :maxthreads => @setup.num_threads, :logg
 ws = Webscrutinizer::Scrutinizer.new(lookup, agent, nil, 3, log1, wdumper) do |scr|
 
   #LEVELS
-  scr.levels << Webscrutinizer::Level.new do |l|
-    l.uri = @setup.seeds.ANUNCIS_PREVIS
-    l.use_parser :LIST_PARSER, :ANUNCIS_PREVIS
-  end
-
-  scr.levels << Webscrutinizer::Level.new do |l|
-    l.uri = @setup.seeds.ANUNC_LICIT
-    l.use_parser :LIST_PARSER, :ANUNC_LICIT
-  end
-
-  scr.levels << Webscrutinizer::Level.new do |l|
-    l.uri = @setup.seeds.ADJUD_PROV
-    l.use_parser :LIST_PARSER, :ADJUD_PROV
-  end
-
-  scr.levels << Webscrutinizer::Level.new do |l|
-    l.uri = @setup.seeds.ADJUD_DEF
-    l.use_parser :LIST_PARSER, :ADJUD_DEF
-  end
-
-  scr.levels << Webscrutinizer::Level.new do |l|
-    l.uri = @setup.seeds.FORMALITZACIONS
-    l.use_parser :LIST_PARSER, :FORMALITZACIONS
-  end
+  scr.seed @setup.seeds.ANUNCIS_PREVIS, :LIST_PARSER, :ANUNCIS_PREVIS
+  scr.seed @setup.seeds.ANUNC_LICIT, :LIST_PARSER, :ANUNC_LICIT
+  scr.seed @setup.seeds.ADJUD_PROV, :LIST_PARSER, :ADJUD_PROV
+  scr.seed @setup.seeds.ADJUD_DEF, :LIST_PARSER, :ADJUD_DEF
+  scr.seed @setup.seeds.FORMALITZACIONS, :LIST_PARSER, :FORMALITZACIONS
 
   # PARSERS
   # parser de llistes de concursos

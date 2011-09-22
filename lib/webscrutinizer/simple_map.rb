@@ -7,7 +7,7 @@
 # Comentaris:
 # Inicialment la vaig definir com SimpleMap < Hash, pero vaig haver
 # de refer-ho d'aquesta manera perque tots els metodes de Hash eren
-# heretats i provocava efectes colaterlas. En especuial, quan vaig
+# heretats i provocava efectes colaterlas. En especial, quan vaig
 # voler serialitzar, el metode to_yaml nomes em serialitzava
 # el Hash ppal, i no la resta d'instance variables. Per defecte,
 # el metode to_yaml serialitza totes les instance variables.

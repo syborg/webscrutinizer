@@ -1,13 +1,9 @@
 # ThreadedAgent
-# MME 10-Aug-2011
+# Marcel Massana 10-Aug-2011
 
-#my_dir=File.dirname(__FILE__)
-#my_name=File.basename(__FILE__,".rb")
-#lib_dir = File.expand_path(File.join(my_dir, '..', 'lib'))
-#
-## includes particulars
-#$LOAD_PATH << lib_dir << my_dir
+require 'rubygems'
 require 'mme_tools'
+require 'mechanize'
 
 module Webscrutinizer
 
@@ -17,6 +13,7 @@ module Webscrutinizer
 
     include MMETools::Debug
     include MMETools::Concurrent
+    include MMETools::ArgsProc
     
     attr_accessor :agents
     attr_accessor :threads
@@ -25,19 +22,25 @@ module Webscrutinizer
     attr_accessor :time_stop
 
     # Called when instantiating a ThreadedAgent
+    # +agent_type+ is a symbol that can be:
+    #   _:mechanize_ to use Mechanize agents
     # +options+ is a hash:
     #   +:maxthreads => maxthreads+ is the maximum number of threads (default 1)
     #   +:maxattempts => maxattempts+ maximum number of attempts before giving up
-    #   +:logger => logger+ Logger object to 
-    def initialize(opts=nil)
-      @maxthreads = 1
-      @maxattempts = 3
-      @log = nil
-      if opts && opts.is_a?(Hash)
-        @maxthreads = opts[:maxthreads] if opts.has_key? :maxthreads
-        @maxattempts = opts[:maxattempts] if opts.has_key? :maxattempts
-        @log = opts[:logger] if opts.has_key? :logger
-      end
+    #   +:logger => logger+ Logger object to log running info
+    def initialize(opts={})
+
+      options = {
+        :maxthreads => 1,
+        :maxattempts => 3,
+        :logger => nil,
+      }
+      assert_valid_keys opts, options
+      options.merge! opts
+      @maxthreads = options[:maxthreads]
+      @maxattempts = options[:maxattempts]
+      @log = options[:logger]
+
       @agents=ConcurrentArray.new
       @retvals=ConcurrentArray.new
       @threads=ConcurrentArray.new
@@ -135,7 +138,7 @@ module Webscrutinizer
     
     # thread protected log: +mssg+ is the text to be logged and +logger_method+
     # is a symbol with the Logger object method to be called (:info, :warn, 
-    # :fatal, ...)
+    # :fatal, ...). See Logger.
     def print_log(logger_method, mssg)
       Thread.critical = true
       @log.__send__(logger_method, mssg)

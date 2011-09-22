@@ -31,24 +31,30 @@ module Webscrutinizer
     attr_reader :statistics
 
     # INICIALITZACIO
-    # @todo racionalitzar parametres d'inicialitzacio
+    # TODO racionalitzar parametres d'inicialitzacio
     # lookup_map: objecte SimpleMap que s'usa per a simplificar els noms
     # de camps
-    def initialize(
-        lookup_map = SimpleMap.new,
-        agent = ThreadedAgent.new,
-        depth = nil,
-        max_attempts = 3,
-        log = nil, 
-        web_dump = nil,
-        &block)
-      @lookup = lookup_map # mapa en el que buscar els noms de camps llegits
-      @agent = agent   # navegador
-      @depth = depth  # profunditat a la que es vol arribar
-      @max_attempts = max_attempts  # reintents que es vol fer al buscar una plana
-      @log = log
-      @web_dump = web_dump
+    def initialize(opts={}, &block)
+      # defaults
+      options = {
+          :lookup => SimpleMap.new, # mapa en el que buscar els noms de camps llegits
+          :agent => ThreadedAgent.new, # navegador
+          :depth => nil,
+          :max_attempts => 3,
+          :log => nil,
+          :web_dump => nil
+      }
+      unknown_keys = opts.keys - options.keys
+      raise(ArgumentError, "Unknown options(s): #{unknown_keys.join(", ")}") unless unknown_keys.empty?
+      options.merge! opts
+
+      @lookup = options[:lookup]
+      @agent = options[:agent]
+      @max_attempts = options[:max_attempts]  # reintents que es vol fer al buscar una plana
+      @log = options[:log]
+      @web_dump = options[:web_dump]
       @page = nil
+
       # estructura on s'emmagatzema la informacio capturada
       @receivers = {
         :LISTS => {},     # this hash contains named lists where lists can be accumulated
@@ -65,11 +71,11 @@ module Webscrutinizer
       @levels = [] # array on hi van els arbres de parsejat ... (segurament a modificar)
       @parsers = {} # hash de parsers
       @statistics = {} # hash per a guardar estadistiques
+
       # cues per recorrer les pagines Breadth-First
       @queue_normal = Queue.new     # levels normals
       @queue_priority = Queue.new   # levels siblings
       @queue_hndl = []  # s'encuen els levels que es van solicitant als threaded
-      # agents amb els handles associats que identifiquen al agent encarregat
       
       yield self if block_given?
 
@@ -113,7 +119,7 @@ module Webscrutinizer
         if lvl
           quit = false
           until hndl=@agent.t_get(lvl.uri)  # keep hndl for further references
-                                            # to this thread
+            # to this thread
             # 4: while not able to fetch try to process once all pending pages
             @queue_hndl.each_with_index do |pair, i|
               l, h = pair # [level, handle]
@@ -368,20 +374,20 @@ module Webscrutinizer
     end
 
     # Dona d'alta un nou parser amb nom +name+ que cridara al parser de nom
-    # +used_parser+ passant-li els raguments +args+
+    # +used_parser+ passant-li els arguments +args+
     def define_on_parser(name, used_parser, *args)
       @parsers[name] = Proc.new { @parsers[used_parser].call(*args) }
     end
 
-    # Adds new uris to begin parsing
-    def seed(uri,*parsers)
+    # Adds new uris and corresponding parsers to initiate spidering
+    def seed(uri,parser,receiver)
       # check argument errors
-      raise ArgumentError, "Ivalid URI" unless uri.is_a? String
+      raise ArgumentError, "Invalid URI" unless uri.is_a? String
       raise ArgumentError unless parsers.all? {|p| p.is_a? Symbol}
       
       level = Level.new do |l|
         l.uri = uri
-        l.use_parser *parsers
+        l.use_parser parser,receiver
       end
       self.levels << level
     end
@@ -394,11 +400,9 @@ module Webscrutinizer
     # :fatal, ...)
     def print_log(logger_method, mssg)
       Thread.critical = true
-        @log.__send__(logger_method, mssg)
+      @log.__send__(logger_method, mssg)
       Thread.critical = false
     end
-
-
 
   end
 

@@ -8,10 +8,17 @@ module Webscrutinizer
 class SeedPool
 
     def initialize
+      @data = []
+    end
+
+    # SeedPool Constructor from a YAML +file+
+    def self.load(file)
+
     end
 
     #afegeix una URI per a scrutinitzar
     def add_uri(uri)
+
     end
 
     #elimina una URI per a scrutinitzar

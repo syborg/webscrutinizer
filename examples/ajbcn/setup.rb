@@ -22,14 +22,15 @@ else
     _nam = "ajbcn"
 
     # DEMO'S OWN CONFIGURACTION
-    c.online = false   # if true -> application accesses internet
+    c.online = true   # if true -> application accesses internet
     # if false -> application uses Fakeweb to access pages
 
     # saving pages
     c.pdump = false    # if true -> accessed pages will be saved
     # if false -> accessed pages won't be saved
     # dir where dumped files will be stored
-    c.pdump_dir = File.expand_path("tmp/web_dumps","~")
+    #c.pdump_dir = File.expand_path("tmp/web_dumps","~")
+    c.pdump_dir = "tmp/web_dumps"
     # extension of dumped files. If "gz" is used they will be compressed and
     # cannot be used by Fakeweb because it needs plain files
     c.pdump_ext = ".html"
@@ -37,16 +38,19 @@ else
     # logging
     c.log = true      # if true -> log info will be saved
     # if false -> log info won't be saved
-    c.log_file = File.join(_dir,"tmp", _nam + ".log")
+    #c.log_file = File.join(_dir,"tmp", _nam + ".log")
+    c.log_file = File.join("tmp", _nam + ".log")
     c.log_level = Logger::DEBUG
     
     # parsed data
     c.saveparsed = true
-    c.saveparsed_file = File.join(_dir,"tmp", _nam + "_exp.yml")
+    #c.saveparsed_file = File.join(_dir,"tmp", _nam + "_exp.yml")
+    c.saveparsed_file = File.join("tmp", _nam + "_exp.yml")
 
     # simple map
     c.lookup = true
-    c.lookup_file = File.join(_dir,"tmp", _nam + "_lookup.yml")
+    #c.lookup_file = File.join(_dir,"tmp", _nam + "_lookup.yml")
+    c.lookup_file = File.join("tmp", _nam + "_lookup.yml")
 
     # Threaded Agent
     c.num_threads = 8

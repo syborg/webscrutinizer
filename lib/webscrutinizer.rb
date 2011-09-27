@@ -15,19 +15,21 @@ require 'webscrutinizer/simple_map'
 require 'webscrutinizer/level'
 require 'webscrutinizer/queue'
 require 'webscrutinizer/threaded_agent'
+require 'webscrutinizer/seed_pool'
 
 module Webscrutinizer
 
   include Webscrutinizer::Version
 
-  # @todo investigar com aportar noves eines de parsejar adhoc (netejar adreces, etc) sense modificar la classe
+  # TODO investigar com aportar noves eines de parsejar adhoc (netejar adreces, etc) sense modificar la classe
   class Scrutinizer
 
     include MMETools::Enumerable # inclou compose, from_to, odd_values, even_values
     include MMETools::Debug # inclou print_debug
 
-    attr_accessor :receivers
     attr_accessor :levels
+    attr_accessor :parsers
+    attr_reader :receivers
     attr_reader :statistics
 
     # INICIALITZACIO
@@ -37,12 +39,12 @@ module Webscrutinizer
     def initialize(opts={}, &block)
       # defaults
       options = {
-          :lookup => SimpleMap.new, # mapa en el que buscar els noms de camps llegits
-          :agent => ThreadedAgent.new, # navegador
-          :depth => nil,
-          :max_attempts => 3,
-          :log => nil,
-          :web_dump => nil
+        :lookup => SimpleMap.new, # mapa en el que buscar els noms de camps llegits
+        :agent => ThreadedAgent.new, # navegador
+        :depth => nil,
+        :max_attempts => 3,
+        :log => nil,
+        :web_dump => nil
       }
       unknown_keys = opts.keys - options.keys
       raise(ArgumentError, "Unknown options(s): #{unknown_keys.join(", ")}") unless unknown_keys.empty?
@@ -55,21 +57,24 @@ module Webscrutinizer
       @web_dump = options[:web_dump]
       @page = nil
 
+      # estructura on s'organitzen els Levels inicials per começar a scrutinitzar.
+      @levels = SeedPool.new 
+      # hash de parsers. Cada key es un symbol identificatiu, i el valor es un
+      # Process que es pot invocar amb Proc#call
+      @parsers = {}
       # estructura on s'emmagatzema la informacio capturada
       @receivers = {
-        :LISTS => {},     # this hash contains named lists where lists can be accumulated
-        :ELEMENTS => {},  # this hash contain named hasehs where named elements can be accumulated
+        :LISTS => {},     # contains named lists where lists can be accumulated
+        :ELEMENTS => {},  # contains named hashes where named elements can be accumulated
         :DEFAULT_LIST => [],
         :DEFAULT_ELEMENT => {}
       }
       
       # main accumulators for speed metering
-      @total_bytes = 0  # acumulador de bytes
+      @total_bytes = 0  # comptador de bytes
       @time_start = nil  # inici del scrutinize
       @time_end = nil # final del scrutinize
-            
-      @levels = [] # array on hi van els arbres de parsejat ... (segurament a modificar)
-      @parsers = {} # hash de parsers
+      
       @statistics = {} # hash per a guardar estadistiques
 
       # cues per recorrer les pagines Breadth-First
@@ -90,12 +95,14 @@ module Webscrutinizer
     # navega en comptes de tenir-ho tot en memoria (memcached, ...)
     # per un String que sigui el HTML de la pàgina
     def scrutinize
+
       @time_start = Time.now
       @time_end = nil
       @total_bytes = 0
       print_log(:info, "---- SCRUTINIZE BEGIN ----") if @log
+
       # 1: enqueue all seed levels
-      levels.each do |lvl|
+      @levels.each_level do |lvl|
         @queue_normal.enq lvl
       end
       
@@ -121,67 +128,43 @@ module Webscrutinizer
           until hndl=@agent.t_get(lvl.uri)  # keep hndl for further references
             # to this thread
             # 4: while not able to fetch try to process once all pending pages
-            @queue_hndl.each_with_index do |pair, i|
-              l, h = pair # [level, handle]
-
-              if @page=@agent.t_get(h) # @page refers to the page to be 
-                # parsed (as asumed by all parsers)
-                #print_debug 0, "Processant (1) handle #{h}"
-                if @page != ""  # "" indicates unavoidable error
-                  @total_bytes += @page.content.size
-                  @web_dump.save(@page.uri.to_s, @page.content.to_s) if @web_dump
-                  print_log(:info, "TA##{h} Received Page OK") if @log
-                  process_level(l)
-                end
-                @queue_hndl.delete_at(i) # delete pair i
-              end
-            end
+            pending_pages
           end
           @queue_hndl << [lvl,hndl]
           #print_debug 0, "Encomanat #{hndl}. @queue_hndl queda ...", @queue_hndl
         
-          # 5: else try to process the rest of pending pages
+          # 5: else try to process once the rest of pending pages
         else
-          @queue_hndl.each_with_index do |pair, i|
-            quit = false
-            l, h = pair
-            #print_debug 0, "Processant (2) handle #{i}", pair, @queue_hndl.size
-            if @page=@agent.t_get(h) # @page refers to the page to be
-              # parsed (as asumed by all parsers)
-              if @page != ""  # "" indicates unavoidable error
-                @total_bytes += @page.content.size
-                @web_dump.save(@page.uri.to_s, @page.content.to_s) if @web_dump
-                print_log(:info, "TA##{h} Received Page OK") if @log
-                process_level(l)
-              end
-              #print_debug 0, "Esborrant @queue_hndl[#{i}]"
-              @queue_hndl.delete_at(i) # delete pair i
-            end
+          quit = false
+          if pending_pages == 0 then quit = true
           end
+          break if quit
         end
-        break if quit
       end
+      
       @time_stop = Time.now
       print_log(:info, "#{@total_bytes} B in #{sprintf('%d',t=(@time_stop - @time_start))} s = #{sprintf('%d',@total_bytes/t)} Bps ") if @log
       print_log(:info, "---- SCRUTINIZE END ----") if @log
     end
 
+
     def process_level(level)
 
-      level.parsers.each do |parser|
+      level.parrecs.each do |parrec|
 
-        print_log(:info, "Parsing with #{parser[:PARSER]}") if @log
-        self.add_one_to :PARSE_COUNT
+        print_debug 1, "PARSERS", level.parrecs
+        
+        print_log(:info, "Parsing with #{parrec.parser}") if @log
+        add_one_to :PARSE_COUNT
 
-        res = @parsers[parser[:PARSER]].call
-        parser[:RESULT] = res
+        res = @parsers[parrec.parser].call
         content = res[:CONTENT]
-        rcvr = parser[:RECEIVER]
+        rcvr = parrec.receiver
 
         # if there are siblings they'll have priority
         res[:SIBLINGS].each do |sblng|  # sblng es un Level
-          sblng.parsers.each do |p|
-            p[:RECEIVER] = rcvr if (p[:RECEIVER] == :_SELF)
+          sblng.parrecs.each do |p|
+            p.receiver = rcvr if (p.receiver == :_SELF)
           end
           @queue_priority.enq sblng
         end if res.has_key? :SIBLINGS
@@ -199,7 +182,7 @@ module Webscrutinizer
 
     # Process an element
     def process_element(element, rcvr)
-      self.add_one_to :ELEMENTS_COUNT
+      add_one_to :ELEMENTS_COUNT
       # if exist sublevels enqueue them and delete that key/value pair
       enq_sublevels element
       case rcvr
@@ -249,8 +232,8 @@ module Webscrutinizer
       if element.has_key? :_SUBLEVELS
         # substitute :_SELF receivers by actual current element
         element[:_SUBLEVELS].each do |slvl|
-          slvl.parsers.each do |p|
-            p[:RECEIVER] = element if (p[:RECEIVER] == :_SELF)
+          slvl.parrecs.each do |p|
+            p.receiver = element if (p.receiver == :_SELF)
           end
           @queue_normal.enq slvl
         end
@@ -381,18 +364,31 @@ module Webscrutinizer
 
     # Adds new uris and corresponding parsers to initiate spidering
     def seed(uri,parser,receiver)
-      # check argument errors
-      raise ArgumentError, "Invalid URI" unless uri.is_a? String
-      raise ArgumentError unless parsers.all? {|p| p.is_a? Symbol}
-      
-      level = Level.new do |l|
-        l.uri = uri
-        l.use_parser parser,receiver
-      end
-      self.levels << level
+      @levels.seed(uri,parser,receiver)
     end
 
     private
+    
+    # Tries to get and process all pages that have already been fetched with
+    # ThreadedAgent#t_get(uri) but not yet received. Returns the number of
+    # pending pages.
+    def pending_pages
+      @queue_hndl.each_with_index do |pair, i|
+        l, h = pair # [level, handle]
+        if @page=@agent.t_get(h) # @page refers to the page to be
+          # parsed (as seen by all parsers)
+          #print_debug 0, "Processant (1) handle #{h}"
+          if @page != ""  # "" indicates unavoidable error
+            @total_bytes += @page.content.size
+            @web_dump.save(@page.uri.to_s, @page.content.to_s) if @web_dump
+            print_log(:info, "TA##{h} Received Page OK") if @log
+            process_level(l)
+          end
+          @queue_hndl.delete_at(i) # delete pair i
+        end
+      end
+      @queue_hndl.size
+    end
 
     # thread protected log:
     # +mssg+ is the text to be logged and +logger_method+

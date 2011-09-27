@@ -69,7 +69,12 @@ agent=Webscrutinizer::ThreadedAgent.new :maxthreads => @setup.num_threads, :logg
 #######################
 # WebScrutinizer Setup
 #
-ws = Webscrutinizer::Scrutinizer.new(lookup, agent, nil, 3, log1, wdumper) do |scr|
+ws = Webscrutinizer::Scrutinizer.new(
+  :lookup=>lookup,
+  :agent=>agent,
+  :log=>log1,
+  :web_dump=> wdumper
+) do |scr|
 
   #LEVELS
   scr.seed @setup.seeds.ANUNCIS_PREVIS, :LIST_PARSER, :ANUNCIS_PREVIS
@@ -78,6 +83,8 @@ ws = Webscrutinizer::Scrutinizer.new(lookup, agent, nil, 3, log1, wdumper) do |s
   scr.seed @setup.seeds.ADJUD_DEF, :LIST_PARSER, :ADJUD_DEF
   scr.seed @setup.seeds.FORMALITZACIONS, :LIST_PARSER, :FORMALITZACIONS
 
+  scr.print_debug 1, scr.levels
+  
   # PARSERS
   # parser de llistes de concursos
   scr.define_parser :LIST_PARSER do

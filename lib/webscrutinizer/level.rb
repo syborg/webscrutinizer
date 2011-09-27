@@ -6,18 +6,24 @@ module Webscrutinizer
   class Level
 
     attr_accessor :uri      # uri to go to a page
-    attr_accessor :parsers  # array of content parsers
+    attr_accessor :parrecs  # array of content parsers
 
-    def initialize(uri = nil, parsers = [], &block)
+    ParRec = Struct.new(:parser,:receiver)  # parser + receiver
+    
+    # Instantiates a Webscrutinizer::Level with +uri+ and a list of 
+    # pairs parsers and receivers +pr+ interspersed
+    def initialize(uri = nil, *pr, &block)
       @uri = uri
-      @parsers = parsers
+      @parrecs = []
+      pr.each_slice(2) {|p,r| @parrecs << ParRec.new(p,r)}  if pr
       yield self if block_given?
     end
 
     # Adds a *parser* (to parse part or a whole page) and a *receiver* (to throw
     # all parser's results at) to a Level instance
     #
-    # A *parser* is a process that when called should return a hash like this:
+    # A *parser* is a symbol that refers to a process that, when called, should
+    # return a hash like this:
     # {
     #   * +:CONTENT+ => if exists, it can contain either a
     #       - _hash_ (element) with details about an item
@@ -47,11 +53,38 @@ module Webscrutinizer
     # added to +:DEFAULT_LIST+ or +:DEFAULT_ELEM+ defined in Scrutinizer. if 
     # +:_SELF+ the result of the parser will be added to the current element or
     # the current list (wether the result is a hash or a list respectively)
-    #
     def use_parser parser, receiver=nil
-      @parsers << {:PARSER => parser, :RECEIVER => receiver}
+      self.remove_parser parser
+      @parrecs << ParRec.new(parser,receiver)
     end
 
+    alias use use_parser
+    alias add_parser use_parser
+    alias add use_parser
+    alias use_parrec use_parser
+    alias add_parrec use_parser
+
+    # if exists, removes +parser+ from the level and returns a _ParRec_ with
+    # +parser+ and correspondent receiver, else nil
+    def remove_parser parser
+      res = nil
+      @parrecs.delete_if do |p|
+        res = p if p.parser == parser
+      end
+      res
+    end
+
+    alias remove remove_parser
+    alias delete remove_parser
+
+    # if exists, returns a _ParRec_ with +parser+ and its 
+    # correspondent receiver, else returns nil
+    def find_parser(parser)
+      @parrecs.find { |p| p.parser == parser }
+    end
+
+    alias find find_parser
+    
 
   end
 

@@ -152,7 +152,7 @@ module Webscrutinizer
 
       level.parrecs.each do |parrec|
 
-        print_debug 1, "PARSERS", level.parrecs
+        # print_debug 1, "PARSERS", level.parrecs
         
         print_log(:info, "Parsing with #{parrec.parser}") if @log
         add_one_to :PARSE_COUNT

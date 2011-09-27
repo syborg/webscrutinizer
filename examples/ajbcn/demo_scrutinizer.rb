@@ -16,7 +16,7 @@ unless @setup.online  # activate if not online
   end
   FakeWeb.allow_net_connect=false # tots els accessos se simularan
   up=UriPathname.new :base_dir => @setup.pdump_dir, :file_ext=> ".html"
-  dump_files = Dir[File.join(@setup.pdump_dir,"*.html")]
+  dump_files = Dir[File.expand_path("*.html",@setup.pdump_dir)]
   dump_files.each do |f|
     uri = up.pathname_to_uri(f)
     FakeWeb.register_uri :any, uri, :body=>f, :content_type=>"text/html"
@@ -124,6 +124,7 @@ ws = Webscrutinizer::Scrutinizer.new(
       if clau
         k = @lookup[clau.text.strip]
         v = valor.text.gsub(/\s+/," ").strip
+        #print_debug 1, "#{k}: ", v, v.to_yaml if (k==:PRESSUPOST_IVA or k==:PRESSUPOST_BASE)
         {k.to_sym => v}
       else
         {}

@@ -148,7 +148,8 @@ end
 ###########################
 # MAIN
 ###########################
-ws.scrutinize :seeds => [@setup.seeds.FORMALITZACIONS, @setup.seeds.ADJUD_DEF, :LIST_PARSER]
+ws.scrutinize :seeds => @setup.seeds.ADJUD_DEF,
+              :maxpages => 112
 #ws.report
 p ws.statistics
 ###########################

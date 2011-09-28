@@ -71,6 +71,9 @@ module Webscrutinizer
       }
       
       # main accumulators for speed metering
+      @maxpages = nil   # maximum number of pages to process
+      @total_pages = 0  # comptador de pagines
+
       @total_bytes = 0  # comptador de bytes
       @time_start = nil  # inici del scrutinize
       @time_end = nil # final del scrutinize
@@ -96,18 +99,22 @@ module Webscrutinizer
     # per un String que sigui el HTML de la pàgina
     #
     # scrutinize is the spider engine that traverses webpages and captures
-    # information. +opts+ is a Hash that configures the traversing behaviour.
+    # information. +opts+ is a Hash that configures the traverse behaviour.
     # It may contain:
     #   :seeds => nil (default) -> Initiates scrutinizing of everything in the SeedPool
     #             "any_uri" (String) -> Initiates scrutinizing only in "any_uri" that should be included in a seed in SeedPool. Doesn't do anything if it doesn't exist.
     #             ["uri1", "uri2", ...] (Array) -> Initiates scrutinizing only in those uris included in the array that are also contained in the SeedPool.
     #             anything else is silently ignored
-    #   :
+    #   :maxpages => nil (default) -> scrutinizes all possible pages
+    #                num (Integer) -> Stops when scrutinizer reaches _num_ pages (and possibly some more if there are threaded agents yet fetching) or there are no more pages to follow.
     #
     def scrutinize(opts={})
-      options = {:seeds => nil }
+      options = {:seeds => nil, :maxpages => nil }
       assert_valid_keys opts, options
       options.merge! opts
+
+      @maxpages = options[:maxpages]
+      @total_pages = 0
 
       @time_start = Time.now
       @time_end = nil
@@ -143,7 +150,7 @@ module Webscrutinizer
           @queue_hndl << [lvl,hndl]
           #print_debug 0, "Encomanat #{hndl}. @queue_hndl queda ...", @queue_hndl
         
-          # 5: else try to process once the rest of pending pages
+        # 5: else try to process once the rest of pending pages
         else
           if pending_pages > 0
             quit = false
@@ -152,10 +159,14 @@ module Webscrutinizer
           end
         end
 
+        if @maxpages
+          quit = true if @total_pages >= @maxpages
+        end
+
       end until quit
       
       @time_stop = Time.now
-      print_log(:info, "#{@total_bytes} B in #{sprintf('%d',t=(@time_stop - @time_start))} s = #{sprintf('%d',@total_bytes/t)} Bps ") if @log
+      print_log(:info, "#{@total_pages} Pages: #{@total_bytes} B in #{sprintf('%d',t=(@time_stop - @time_start))} s = #{sprintf('%d',@total_bytes/t)} Bps ") if @log
       print_log(:info, "---- SCRUTINIZE END ----") if @log
     end
 
@@ -392,6 +403,7 @@ module Webscrutinizer
           #print_debug 0, "Processant (1) handle #{h}"
           if @page != ""  # "" indicates unavoidable error
             @total_bytes += @page.content.size
+            @total_pages += 1
             @web_dump.save(@page.uri.to_s, @page.content.to_s) if @web_dump
             print_log(:info, "TA##{h} Received Page OK") if @log
             process_level(l)

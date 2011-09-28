@@ -82,8 +82,6 @@ ws = Webscrutinizer::Scrutinizer.new(
   scr.seed @setup.seeds.ADJUD_PROV, :LIST_PARSER, :ADJUD_PROV
   scr.seed @setup.seeds.ADJUD_DEF, :LIST_PARSER, :ADJUD_DEF
   scr.seed @setup.seeds.FORMALITZACIONS, :LIST_PARSER, :FORMALITZACIONS
-
-  scr.print_debug 1, scr.levels
   
   # PARSERS
   # parser de llistes de concursos
@@ -150,7 +148,7 @@ end
 ###########################
 # MAIN
 ###########################
-ws.scrutinize
+ws.scrutinize :seeds => [@setup.seeds.FORMALITZACIONS, @setup.seeds.ADJUD_DEF, :LIST_PARSER]
 #ws.report
 p ws.statistics
 ###########################

@@ -26,8 +26,9 @@ module Webscrutinizer
 
     include MMETools::Enumerable # inclou compose, from_to, odd_values, even_values
     include MMETools::Debug # inclou print_debug
+    include MMETools::ArgsProc
 
-    attr_accessor :levels
+    attr_accessor :seedpool
     attr_accessor :parsers
     attr_reader :receivers
     attr_reader :statistics
@@ -46,8 +47,7 @@ module Webscrutinizer
         :log => nil,
         :web_dump => nil
       }
-      unknown_keys = opts.keys - options.keys
-      raise(ArgumentError, "Unknown options(s): #{unknown_keys.join(", ")}") unless unknown_keys.empty?
+      assert_valid_keys opts, options
       options.merge! opts
 
       @lookup = options[:lookup]
@@ -58,7 +58,7 @@ module Webscrutinizer
       @page = nil
 
       # estructura on s'organitzen els Levels inicials per começar a scrutinitzar.
-      @levels = SeedPool.new 
+      @seedpool = SeedPool.new
       # hash de parsers. Cada key es un symbol identificatiu, i el valor es un
       # Process que es pot invocar amb Proc#call
       @parsers = {}
@@ -94,31 +94,41 @@ module Webscrutinizer
     # @todo estudiar alguna manera de permetre guardar els resultats mentre es
     # navega en comptes de tenir-ho tot en memoria (memcached, ...)
     # per un String que sigui el HTML de la pàgina
-    def scrutinize
+    #
+    # scrutinize is the spider engine that traverses webpages and captures
+    # information. +opts+ is a Hash that configures the traversing behaviour.
+    # It may contain:
+    #   :seeds => nil (default) -> Initiates scrutinizing of everything in the SeedPool
+    #             "any_uri" (String) -> Initiates scrutinizing only in "any_uri" that should be included in a seed in SeedPool. Doesn't do anything if it doesn't exist.
+    #             ["uri1", "uri2", ...] (Array) -> Initiates scrutinizing only in those uris included in the array that are also contained in the SeedPool.
+    #             anything else is silently ignored
+    #   :
+    #
+    def scrutinize(opts={})
+      options = {:seeds => nil }
+      assert_valid_keys opts, options
+      options.merge! opts
 
       @time_start = Time.now
       @time_end = nil
       @total_bytes = 0
       print_log(:info, "---- SCRUTINIZE BEGIN ----") if @log
 
-      # 1: enqueue all seed levels
-      @levels.each_level do |lvl|
-        @queue_normal.enq lvl
-      end
+      # 1: enqueue seed levels given in opt[:seeds]
+      enqueue_seeds options[:seeds]
       
-      loop do
+      begin
 
         lvl=nil
-        quit=true
 
         # 2: dequeues elements from queues with priority for siblings
         # (new elements are enqueued implicitly by parsers)
         if @queue_priority.any?
-          quit=false
           lvl = @queue_priority.deq
         elsif @queue_normal.any?
-          quit=false
           lvl = @queue_normal.deq
+        else
+          quit = true
         end
 
         # 3: if a new level keep trying to fetch it (don't try another uri until
@@ -135,12 +145,14 @@ module Webscrutinizer
         
           # 5: else try to process once the rest of pending pages
         else
-          quit = false
-          if pending_pages == 0 then quit = true
+          if pending_pages > 0
+            quit = false
+          elsif @queue_priority.any? || @queue_priority.any?
+            quit = false
           end
-          break if quit
         end
-      end
+
+      end until quit
       
       @time_stop = Time.now
       print_log(:info, "#{@total_bytes} B in #{sprintf('%d',t=(@time_stop - @time_start))} s = #{sprintf('%d',@total_bytes/t)} Bps ") if @log
@@ -364,13 +376,13 @@ module Webscrutinizer
 
     # Adds new uris and corresponding parsers to initiate spidering
     def seed(uri,parser,receiver)
-      @levels.seed(uri,parser,receiver)
+      @seedpool.seed(uri,parser,receiver)
     end
 
     private
     
-    # Tries to get and process all pages that have already been fetched with
-    # ThreadedAgent#t_get(uri) but not yet received. Returns the number of
+    # Tries to retrieve and process all pages that have already been fetched
+    # with ThreadedAgent#t_get(uri) but not yet received. Returns the number of
     # pending pages.
     def pending_pages
       @queue_hndl.each_with_index do |pair, i|
@@ -398,6 +410,28 @@ module Webscrutinizer
       Thread.critical = true
       @log.__send__(logger_method, mssg)
       Thread.critical = false
+    end
+
+    # enqueues seed levels that will be traversed given +opt+ (see scrutinize)
+    def enqueue_seeds opt
+      case opt
+      when nil  # everything will be scrutinized
+        @seedpool.each_level do |lvl|
+          @queue_normal.enq lvl
+        end
+      when String
+        lvl = @seedpool.find_level(opt)
+        ##
+        print_debug 1,"when String",lvl
+        @queue_normal.enq lvl if lvl
+      when Array
+        opt.each do |uri|
+          lvl = @seedpool.find_level(uri)
+          ##
+          print_debug 1,"when Array",lvl
+          @queue_normal.enq lvl if lvl
+        end
+      end
     end
 
   end

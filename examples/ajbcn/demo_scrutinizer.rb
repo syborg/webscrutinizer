@@ -149,7 +149,7 @@ end
 # MAIN
 ###########################
 ws.scrutinize :seeds => @setup.seeds.ADJUD_DEF,
-              :maxpages => 112
+              :maxpages => 15
 #ws.report
 p ws.statistics
 ###########################

@@ -16,6 +16,7 @@ require 'webscrutinizer/level'
 require 'webscrutinizer/queue'
 require 'webscrutinizer/threaded_agent'
 require 'webscrutinizer/seed_pool'
+require 'webscrutinizer/printlog'
 
 module Webscrutinizer
 
@@ -27,6 +28,7 @@ module Webscrutinizer
     include MMETools::Enumerable # inclou compose, from_to, odd_values, even_values
     include MMETools::Debug # inclou print_debug
     include MMETools::ArgsProc
+    include Webscrutinizer::Printlog
 
     attr_accessor :seedpool
     attr_accessor :parsers
@@ -264,44 +266,6 @@ module Webscrutinizer
       end
     end
 
-    # jumps to a new uri (deprecated from the Threaded version)
-    def change_to(obj, what=:URI)
-      attempt=0
-      print_log(:info, "Visiting #{obj}") if @log
-      self.add_one_to :PAGE_COUNT
-      begin
-        case what
-        when :URI
-          @page = @agent.get obj
-        when :LNK
-          @page = obj.click
-        else
-          raise "Unknown what"
-        end
-      rescue => err
-        if attempt <= @max_attempts
-          print_log(:warn, "Attempt #{attempt}: #{err}") if @log
-          attempt += 1
-          retry
-        else
-          print_log(:fatal, "Impossible connection: #{err}") if @log
-          return nil
-        end
-        # Timeout::Error no es caça i s'ha de posar explicitament
-        # veure http://lindsaar.net/2007/12/9/rbuf_filltimeout-error
-      rescue Timeout::Error => err
-        if attempt <= @max_attempts
-          print_log(:warn, "Timeout: Attempt #{attempt}: #{err}") if @log
-          attempt += 1
-          retry
-        else
-          print_log(:fatal, "Timeout: Impossible connection: #{err}") if @log
-          return nil
-        end
-      end
-      @page
-    end
-
     # outputs the contents of @receivers, i.e. all extracted data
     def report
       # default element first
@@ -414,16 +378,6 @@ module Webscrutinizer
       @queue_hndl.size
     end
 
-    # thread protected log:
-    # +mssg+ is the text to be logged and +logger_method+
-    # is a symbol with the Logger object method to be called (:info, :warn,
-    # :fatal, ...)
-    def print_log(logger_method, mssg)
-      Thread.critical = true
-      @log.__send__(logger_method, mssg)
-      Thread.critical = false
-    end
-
     # enqueues seed levels that will be traversed given +opt+ (see scrutinize)
     def enqueue_seeds opt
       case opt
@@ -433,14 +387,12 @@ module Webscrutinizer
         end
       when String
         lvl = @seedpool.find_level(opt)
-        ##
-        print_debug 1,"when String",lvl
+        #print_debug 1,"when String",lvl
         @queue_normal.enq lvl if lvl
       when Array
         opt.each do |uri|
           lvl = @seedpool.find_level(uri)
-          ##
-          print_debug 1,"when Array",lvl
+          #print_debug 1,"when Array",lvl
           @queue_normal.enq lvl if lvl
         end
       end

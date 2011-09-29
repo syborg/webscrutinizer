@@ -4,6 +4,7 @@
 require 'rubygems'
 require 'mme_tools'
 require 'mechanize'
+require 'webscrutinizer/printlog'
 
 module Webscrutinizer
 
@@ -14,6 +15,7 @@ module Webscrutinizer
     include MMETools::Debug
     include MMETools::Concurrent
     include MMETools::ArgsProc
+    include Webscrutinizer::Printlog
     
     attr_accessor :agents
     attr_accessor :threads
@@ -37,6 +39,7 @@ module Webscrutinizer
       }
       assert_valid_keys opts, options
       options.merge! opts
+      
       @maxthreads = options[:maxthreads]
       @maxattempts = options[:maxattempts]
       @log = options[:logger]
@@ -75,10 +78,10 @@ module Webscrutinizer
 
     # @todo manage and recover from errors
     #  t_get is a threaded get: works in 2 -non waiting- phases
-    # *1st phase:* if +val+ is a URI (String class) it tries to spawn a thread
+    # *1st phase:* if +arg+ is a URI (String class) it tries to spawn a thread
     # with an agent trying to _get_ that uri and returns a handle (Integer)
     # for further reference. If not possible returns nil.
-    # *2nd phase:* if +val+ is a handle (Integer) the result of the agent's
+    # *2nd phase:* if +arg+ is a handle (Integer) the result of the agent's
     # (_page_) is returned, _""_ to indicate an error and _nil_ if it isn't yet 
     # available
     def t_get(arg)
@@ -132,17 +135,6 @@ module Webscrutinizer
       else # error
         nil
       end
-    end
-
-    private
-    
-    # thread protected log: +mssg+ is the text to be logged and +logger_method+
-    # is a symbol with the Logger object method to be called (:info, :warn, 
-    # :fatal, ...). See Logger.
-    def print_log(logger_method, mssg)
-      Thread.critical = true
-      @log.__send__(logger_method, mssg)
-      Thread.critical = false
     end
 
   end

@@ -7,7 +7,7 @@ module Webscrutinizer
     MAJOR = 0
     MINOR = 0
     PATCH = 0
-    BUILD = 'pre2'  # use nil if not used
+    BUILD = 'pre3'  # use nil if not used
 	
     STRING = [MAJOR, MINOR, PATCH, BUILD].compact.join(".")
 

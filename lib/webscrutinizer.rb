@@ -17,6 +17,7 @@ require 'webscrutinizer/queue'
 require 'webscrutinizer/threaded_agent'
 require 'webscrutinizer/seed_pool'
 require 'webscrutinizer/printlog'
+require 'webscrutinizer/report'
 
 module Webscrutinizer
 
@@ -29,6 +30,7 @@ module Webscrutinizer
     include MMETools::Debug # inclou print_debug
     include MMETools::ArgsProc
     include Webscrutinizer::Printlog
+    include Webscrutinizer::Report
 
     attr_accessor :seedpool
     attr_accessor :parsers
@@ -128,17 +130,9 @@ module Webscrutinizer
       
       begin
 
-        lvl=nil
-
         # 2: dequeues elements from queues with priority for siblings
         # (new elements are enqueued implicitly by parsers)
-        if @queue_priority.any?
-          lvl = @queue_priority.deq
-        elsif @queue_normal.any?
-          lvl = @queue_normal.deq
-        else
-          quit = true
-        end
+        lvl = dequeue_level
 
         # 3: if a new level keep trying to fetch it (don't try another uri until
         # this is done)
@@ -152,12 +146,14 @@ module Webscrutinizer
           @queue_hndl << [lvl,hndl]
           #print_debug 0, "Encomanat #{hndl}. @queue_hndl queda ...", @queue_hndl
         
-        # 5: else try to process once the rest of pending pages
+          # 5: else try to process once the rest of pending pages
         else
           if pending_pages > 0
             quit = false
           elsif @queue_priority.any? || @queue_priority.any?
             quit = false
+          else
+            quit = true
           end
         end
 
@@ -266,58 +262,6 @@ module Webscrutinizer
       end
     end
 
-    # outputs the contents of @receivers, i.e. all extracted data
-    def report
-      # default element first
-      report_element @receivers[:DEFAULT_ELEMENT], "DEFAULT_ELEMENT"
-      # other elements
-      hshs = @receivers[:ELEMENTS]
-      if !hshs.empty?
-        puts ">>> OTHER ELEMENTS"
-        hshs.each do |k,e|
-          report_element e, k.to_s
-        end
-        puts "<<< OTHER ELEMENTS"
-      end
-      # default list
-      report_list @receivers[:DEFAULT_LIST], "DEFAULT_LIST"
-      # other lists
-      hshs = @receivers[:LISTS]
-      if !hshs.empty?
-        puts ">> OTHER LISTS"
-        hshs.each do |k,e|
-          report_list e, k.to_s
-        end
-        puts "<< OTHER LISTS"
-      end
-    end
-
-    # reports an +element+ (hash) with name +name+
-    def report_element(element, name)
-      if !element.empty?
-        nspc = name.to_s[/\s+/]
-        nspc = nspc ? nspc.length : 0
-        puts ">#{name}"
-        element.sort_by{|a,b| a.to_s}.each do |itm|
-          puts "#{' '*(nspc+1)}#{itm[0]}: #{itm[1]}"
-        end
-        puts "<#{name}"
-      end
-    end
-
-    # reports a +list+ (array) with name +name+
-    def report_list (list, name)
-      if !list.empty?
-        nspc = name.to_s[/\s+/]
-        nspc = nspc ? nspc.length : 0
-        puts ">>#{name}"
-        list.each_with_index do |element,i|
-          report_element element, "#{' '*(nspc+1)}ELEMENT #{i}"
-        end
-        puts "<<#{name}"
-      end
-    end
-    
     # Adds one to a counter +cref+
     def add_one_to(cref)
       if @statistics.has_key? cref
@@ -395,6 +339,18 @@ module Webscrutinizer
           #print_debug 1,"when Array",lvl
           @queue_normal.enq lvl if lvl
         end
+      end
+    end
+
+    # gets a level from the correct (priorized) queue. returns a
+    # Webscrutinizer::Level if it exists or nil if it doesn't.
+    def dequeue_level
+      if @queue_priority.any?
+        lvl = @queue_priority.deq
+      elsif @queue_normal.any?
+        lvl = @queue_normal.deq
+      else
+        nil
       end
     end
 

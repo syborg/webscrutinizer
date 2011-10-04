@@ -35,6 +35,15 @@ else
     # cannot be used by Fakeweb because it needs plain files
     c.pdump_ext = ".html"
 
+    # saving data
+    c.ddump = true    # if true -> parsed data will be saved
+                      # if true -> parsed data won't be saved
+    # directory where parsed data will be saved
+    c.ddump_dir = "tmp/data_dumps"
+    # format of saved files
+    c.ddump_format = :json
+
+
     # logging
     c.log = true      # if true -> log info will be saved
     # if false -> log info won't be saved

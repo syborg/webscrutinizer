@@ -1,6 +1,6 @@
 = webscrutinizer
 
-Description goes here.
+... Men at work
 
 == Contributing to webscrutinizer
  

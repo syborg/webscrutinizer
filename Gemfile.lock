@@ -18,6 +18,8 @@ GEM
     uri_pathname (0.1.1.0)
     web_dump (0.0.2.0)
       uri_pathname
+    ya2yaml (0.30)
+    yajl-ruby (1.0.0)
 
 PLATFORMS
   ruby
@@ -30,3 +32,5 @@ DEPENDENCIES
   mme_tools (~> 0.0.4)
   rcov
   web_dump (~> 0.0.2.0)
+  ya2yaml (~> 0.30)
+  yajl-ruby

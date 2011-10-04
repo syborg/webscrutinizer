@@ -3,6 +3,11 @@
 
 require './setup'
 
+# aixo permet utilitzar .ya2yaml en comptes de .to_yaml, evitant les sortides
+# binaries d'aquest posant-ho tot en ascii (escapant els utf8)
+require 'ya2yaml'
+$KCODE = 'UTF8'
+
 ################
 # Fakeweb Setup
 #
@@ -39,13 +44,22 @@ end
 
 #################
 # WebDump Setup
-#
+# (save webpages)
 if @setup.pdump
   wdumper=WebDump.new :base_dir => @setup.pdump_dir, :file_ext => @setup.pdump_ext
 else
   wdumper=nil
 end
 #################
+
+################
+# DataDump Setup
+# (save parsed data)
+if @setup.ddump
+  ddumper=Webscrutinizer::DataDump.new @setup.ddump_dir, @setup.ddump_format
+else
+  ddumper=nil
+end
 
 ##################
 # SimpleMap Setup
@@ -73,7 +87,8 @@ ws = Webscrutinizer::Scrutinizer.new(
   :lookup=>lookup,
   :agent=>agent,
   :log=>log1,
-  :web_dump=> wdumper
+  :web_dump=> wdumper,
+  :data_dump=> ddumper
 ) do |scr|
 
   #LEVELS
@@ -148,8 +163,8 @@ end
 ###########################
 # MAIN
 ###########################
-ws.scrutinize :maxpages => 29
-             #:seeds => @setup.seeds.ADJUD_DEF
+ws.scrutinize #:maxpages => 25
+              #:seeds => @setup.seeds.ADJUD_DEF
               
 #ws.report
 p ws.statistics
@@ -160,7 +175,8 @@ p ws.statistics
 #
 if @setup.saveparsed
   File.open(@setup.saveparsed_file,'w') do |f|
-    YAML.dump(ws.receivers,f)
+    #YAML.dump(ws.receivers,f)
+    f.write ws.receivers.ya2yaml(:syck_compatible => true)
   end
 end
 
@@ -169,13 +185,14 @@ end
 #
 if @setup.lookup
   File.open(@setup.lookup_file,'w') do |f|
-    YAML.dump(lookup,f)
+    #YAML.dump(lookup,f)
+    f.write lookup.ya2yaml(:syck_compatible => true)
   end
 end
 #####################
 
 ################
-# Logger Setup
+# Logger Teardown
 #
 if @setup.log
   log1.close

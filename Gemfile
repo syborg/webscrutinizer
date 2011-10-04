@@ -5,6 +5,8 @@ source "http://rubygems.org"
 gem "mme_tools", "~> 0.0.4"
 gem "web_dump", "~> 0.0.2.0"
 gem "mechanize", "~> 1.0.0"
+gem "ya2yaml", "~> 0.30"
+gem "yajl-ruby"
 
 # Add dependencies to develop your gem here.
 # Include everything needed to run rake, tests, features, etc.

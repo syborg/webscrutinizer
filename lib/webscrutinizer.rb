@@ -10,6 +10,7 @@ require 'web_dump'
 require 'mme_tools' # no public gem ...
 
 # includes particulars
+require 'webscrutinizer/error'
 require 'webscrutinizer/version'
 require 'webscrutinizer/simple_map'
 require 'webscrutinizer/level'
@@ -18,6 +19,7 @@ require 'webscrutinizer/threaded_agent'
 require 'webscrutinizer/seed_pool'
 require 'webscrutinizer/printlog'
 require 'webscrutinizer/report'
+require 'webscrutinizer/data_dump'
 
 module Webscrutinizer
 
@@ -31,6 +33,7 @@ module Webscrutinizer
     include MMETools::ArgsProc
     include Webscrutinizer::Printlog
     include Webscrutinizer::Report
+    include Webscrutinizer::Error
 
     attr_accessor :seedpool
     attr_accessor :parsers
@@ -49,7 +52,8 @@ module Webscrutinizer
         :depth => nil,
         :max_attempts => 3,
         :log => nil,
-        :web_dump => nil
+        :web_dump => nil,
+        :data_dump => nil
       }
       assert_valid_keys opts, options
       options.merge! opts
@@ -59,6 +63,7 @@ module Webscrutinizer
       @max_attempts = options[:max_attempts]  # reintents que es vol fer al buscar una plana
       @log = options[:log]
       @web_dump = options[:web_dump]
+      @data_dump = options[:data_dump]
       @page = nil
 
       # estructura on s'organitzen els Levels inicials per começar a scrutinitzar.
@@ -73,14 +78,14 @@ module Webscrutinizer
         :DEFAULT_LIST => [],
         :DEFAULT_ELEMENT => {}
       }
-      
+
       # main accumulators for speed metering
       @maxpages = nil   # maximum number of pages to process
       @total_pages = 0  # comptador de pagines
 
       @total_bytes = 0  # comptador de bytes
       @time_start = nil  # inici del scrutinize
-      @time_end = nil # final del scrutinize
+      @time_stop = nil # final del scrutinize
       
       @statistics = {} # hash per a guardar estadistiques
 
@@ -113,19 +118,22 @@ module Webscrutinizer
     #                num (Integer) -> Stops when scrutinizer reaches _num_ pages (and possibly some more if there are threaded agents yet fetching) or there are no more pages to follow.
     #
     def scrutinize(opts={})
-      options = {:seeds => nil, :maxpages => nil }
+      options = {:seeds => nil, :maxpages => nil}
       assert_valid_keys opts, options
       options.merge! opts
 
-      @maxpages = options[:maxpages]
+      # opts[:maxpages]
+      if @maxpages = options[:maxpages]
+        raise Webscrutinizer::Error::BadOption, ":maxpages should be a positive integer or nil" unless @maxpages.is_a?(Integer) && @maxpages > 0
+      end
+
       @total_pages = 0
 
       @time_start = Time.now
-      @time_end = nil
       @total_bytes = 0
       print_log(:info, "---- SCRUTINIZE BEGIN ----") if @log
 
-      # 1: enqueue seed levels given in opt[:seeds]
+      # 1: enqueue seed levels given in opts[:seeds]
       enqueue_seeds options[:seeds]
       
       begin
@@ -162,13 +170,30 @@ module Webscrutinizer
         end
 
       end until quit
+
+      # FIXME dumping data should be done while parsing. This is only a temporary solution
+      if @data_dump
+        # LISTS
+        @receivers[:LISTS].keys.each do |list|
+          @data_dump.dump @receivers[:LISTS][list], :lists, list.to_s
+        end
+        # ELEMENTS
+        @receivers[:ELEMENTS].keys.each do |elem|
+          @data_dump.dump @receivers[:ELEMENTS][elem], :elements, elem.to_s
+        end
+        # DEFAULT_LIST
+        @data_dump.dump @receivers[:DEFAULT_LIST], :default_list
+        # DEFAULT_ELEMENT
+        @data_dump.dump @receivers[:DEFAULT_ELEMENT], :default_element
+      end
       
       @time_stop = Time.now
       print_log(:info, "#{@total_pages} Pages: #{@total_bytes} B in #{sprintf('%d',t=(@time_stop - @time_start))} s = #{sprintf('%d',@total_bytes/t)} Bps ") if @log
       print_log(:info, "---- SCRUTINIZE END ----") if @log
     end
 
-
+    # calls all parsers for that level (assuming that @page contains data) and
+    # enqueues further siblings and sublevels if there exist.
     def process_level(level)
 
       level.parrecs.each do |parrec|
@@ -298,6 +323,7 @@ module Webscrutinizer
       @seedpool.seed(uri,parser,receiver)
     end
 
+    ###########################################################################
     private
     
     # Tries to retrieve and process all pages that have already been fetched
@@ -331,12 +357,10 @@ module Webscrutinizer
         end
       when String
         lvl = @seedpool.find_level(opt)
-        #print_debug 1,"when String",lvl
         @queue_normal.enq lvl if lvl
       when Array
         opt.each do |uri|
           lvl = @seedpool.find_level(uri)
-          #print_debug 1,"when Array",lvl
           @queue_normal.enq lvl if lvl
         end
       end

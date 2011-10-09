@@ -172,20 +172,7 @@ module Webscrutinizer
       end until quit
 
       # FIXME dumping data should be done while parsing. This is only a temporary solution
-      if @data_dump
-        # LISTS
-        @receivers[:LISTS].keys.each do |list|
-          @data_dump.dump @receivers[:LISTS][list], :lists, list.to_s
-        end
-        # ELEMENTS
-        @receivers[:ELEMENTS].keys.each do |elem|
-          @data_dump.dump @receivers[:ELEMENTS][elem], :elements, elem.to_s
-        end
-        # DEFAULT_LIST
-        @data_dump.dump @receivers[:DEFAULT_LIST], :default_list
-        # DEFAULT_ELEMENT
-        @data_dump.dump @receivers[:DEFAULT_ELEMENT], :default_element
-      end
+      dump_all
       
       @time_stop = Time.now
       print_log(:info, "#{@total_pages} Pages: #{@total_bytes} B in #{sprintf('%d',t=(@time_stop - @time_start))} s = #{sprintf('%d',@total_bytes/t)} Bps ") if @log
@@ -373,8 +360,31 @@ module Webscrutinizer
         lvl = @queue_priority.deq
       elsif @queue_normal.any?
         lvl = @queue_normal.deq
-      else
-        nil
+        #      else
+        #        nil
+      end
+    end
+
+    # dumps al parsed data within @receivers by means of @data_dump object
+    def dump_all
+      if @data_dump
+        # LISTS
+        @receivers[:LISTS].each do |lkey,list|
+          list.each do |elem|
+            @data_dump.dump(elem, :lists, lkey.to_s) unless elem.empty?
+          end
+        end
+        # ELEMENTS
+        @receivers[:ELEMENTS].each do |ekey,elem|
+          @data_dump.dump(elem, :elements, ekey.to_s) unless elem.empty?
+        end
+        # DEFAULT_LIST
+        @receivers[:DEFAULT_LIST].each do |elem|
+          @data_dump.dump(elem, :default_list) unless elem.empty?
+        end
+        # DEFAULT_ELEMENT
+        elem = @receivers[:DEFAULT_ELEMENT]
+        @data_dump.dump elem, :default_element unless elem.empty?
       end
     end
 

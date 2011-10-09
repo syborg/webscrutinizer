@@ -5,6 +5,7 @@
 
 module Webscrutinizer
 
+  # TODO perfeccionar aquest modul
   module Report
 
     # outputs the contents of @receivers, i.e. all extracted data

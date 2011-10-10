@@ -182,7 +182,7 @@ end
 ###########################
 # MAIN
 ###########################
-ws.scrutinize #:maxpages => 25
+ws.scrutinize :maxpages => 50
               #:seeds => @setup.seeds.ADJUD_DEF
               
 #ws.report

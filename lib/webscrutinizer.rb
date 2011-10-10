@@ -20,6 +20,7 @@ require 'webscrutinizer/seed_pool'
 require 'webscrutinizer/printlog'
 require 'webscrutinizer/report'
 require 'webscrutinizer/data_dump'
+require 'webscrutinizer/helpers'
 
 module Webscrutinizer
 
@@ -31,9 +32,11 @@ module Webscrutinizer
     include MMETools::Enumerable # inclou compose, from_to, odd_values, even_values
     include MMETools::Debug # inclou print_debug
     include MMETools::ArgsProc
+
     include Webscrutinizer::Printlog
     include Webscrutinizer::Report
     include Webscrutinizer::Error
+    include Webscrutinizer::Helpers
 
     attr_accessor :seedpool
     attr_accessor :parsers
@@ -98,6 +101,7 @@ module Webscrutinizer
 
     end
 
+    # TODO detectar si s'entra en un bucle (detectar si una URI es visita 2 cops)
     # @todo parametritzarlo per a que admeti recorrer un nombre determinat de pagines
     # per maxim nombre de pagines,
     # per profunditat,
@@ -111,7 +115,7 @@ module Webscrutinizer
     # information. +opts+ is a Hash that configures the traverse behaviour.
     # It may contain:
     #   :seeds => nil (default) -> Initiates scrutinizing of everything in the SeedPool
-    #             "any_uri" (String) -> Initiates scrutinizing only in "any_uri" that should be included in a seed in SeedPool. Doesn't do anything if it doesn't exist.
+    #             "any_uri" (String) -> Initiates scrutinizing only in "any_uri" that should already been included in a seed in SeedPool. Doesn't do anything if it doesn't exist.
     #             ["uri1", "uri2", ...] (Array) -> Initiates scrutinizing only in those uris included in the array that are also contained in the SeedPool.
     #             anything else is silently ignored
     #   :maxpages => nil (default) -> scrutinizes all possible pages
@@ -122,7 +126,7 @@ module Webscrutinizer
       assert_valid_keys opts, options
       options.merge! opts
 
-      # opts[:maxpages]
+      # options[:maxpages]
       if @maxpages = options[:maxpages]
         raise Webscrutinizer::Error::BadOption, ":maxpages should be a positive integer or nil" unless @maxpages.is_a?(Integer) && @maxpages > 0
       end
@@ -133,6 +137,7 @@ module Webscrutinizer
       @total_bytes = 0
       print_log(:info, "---- SCRUTINIZE BEGIN ----") if @log
 
+      # options[:seeds]
       # 1: enqueue seed levels given in opts[:seeds]
       enqueue_seeds options[:seeds]
       
@@ -172,7 +177,7 @@ module Webscrutinizer
       end until quit
 
       # FIXME dumping data should be done while parsing. This is only a temporary solution
-      dump_all
+      dump_all_receivers
       
       @time_stop = Time.now
       print_log(:info, "#{@total_pages} Pages: #{@total_bytes} B in #{sprintf('%d',t=(@time_stop - @time_start))} s = #{sprintf('%d',@total_bytes/t)} Bps ") if @log
@@ -366,7 +371,7 @@ module Webscrutinizer
     end
 
     # dumps al parsed data within @receivers by means of @data_dump object
-    def dump_all
+    def dump_all_receivers
       if @data_dump
         # LISTS
         @receivers[:LISTS].each do |lkey,list|

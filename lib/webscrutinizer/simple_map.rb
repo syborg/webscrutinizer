@@ -31,8 +31,8 @@ class SimpleMap
   # This permits use it as a translator for already stored keys, bypassing them
   # if SimpleMap doesn't know about its existence. For instance
   #   sm["Mister"]="Mr"
-  #   puts sm["Mister"] # "Mr"
-  #   puts sm["Mr."] # "Mr."
+  #   sm["Mister"] # => "Mr"
+  #   sm["Mr."] # => "Mr."
   def [](key)
     if @data.has_key?(key)
       @data[key]

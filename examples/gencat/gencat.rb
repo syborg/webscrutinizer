@@ -1,23 +1,220 @@
-# Dades per scrutinitzar la Generalitat de Catalunya https://contractaciopublica.gencat.cat/ecofin_pscp/...
+# Scrutinizing Expedients de la Generalitat de Catalunya
+# Marcel Massana 09-Oct-2011
 
-GENCAT_PAGES = {
-  # Futures licitacions que ja estan una mica passades ... Em sembla que ja no esta mantinguda aquesta seccio
-  :ALERTES_FUTURES=> "https://contractaciopublica.gencat.cat/ecofin_pscp/AppJava/search.pscp?reqCode=searchCtn&set-locale=ca_ES",
-  # Anuncis Previs: Futures licitacions que sembla que estan una mica mes actualitzades, tot i que algunes son molt velles
-  :ANUNC_PREV => "https://contractaciopublica.gencat.cat/ecofin_pscp/AppJava/search.pscp?reqCode=searchPin&advancedSearch=false",
-  # Anuncis de Licitacions en curs: Licitacions que es poden concursar i encara no ha arribat la data de presentacio
-  :ANUNC_LICIT => "https://contractaciopublica.gencat.cat/ecofin_pscp/AppJava/search.pscp?reqCode=searchCn&advancedSearch=false",
-  # Adjudciacions provisionals
-  :ADJUD_PROV =>"https://contractaciopublica.gencat.cat/ecofin_pscp/AppJava/search.pscp?reqCode=searchPcan&advancedSearch=false&lawType=1",
-  # Adjudciacions definitives
-  :ADJUD_DEFI =>"https://contractaciopublica.gencat.cat/ecofin_pscp/AppJava/search.pscp?reqCode=searchDcan&advancedSearch=false&lawType=1",
-  #EXEMPLES PER DEPARTAMENTS
-  :ANUNC_PREV_CTTI => "https://contractaciopublica.gencat.cat/ecofin_pscp/AppJava/notice.pscp?reqCode=searchPin&idCap=11110",
-  :LICIT_CTTI => "https://contractaciopublica.gencat.cat/ecofin_pscp/AppJava/notice.pscp?reqCode=searchCn&idCap=11110",
-  :LICIT_ACA => "https://contractaciopublica.gencat.cat/ecofin_pscp/AppJava/notice.pscp?reqCode=searchCn&idCap=206317",
-  :LICIT_DEP_TIS => "https://contractaciopublica.gencat.cat/ecofin_pscp/AppJava/notice.pscp?reqCode=searchCn&idCap=202144",
-  :LICIT_ICS => "https://contractaciopublica.gencat.cat/ecofin_pscp/AppJava/notice.pscp?reqCode=searchCn&idCap=204588",
-  :LICIT_GISA => "https://contractaciopublica.gencat.cat/ecofin_pscp/AppJava/notice.pscp?reqCode=searchCn&idCap=203633",
-  :ADJUD_DEP_TIS => "https://contractaciopublica.gencat.cat/ecofin_pscp/AppJava/awardnotice.pscp?reqCode=searchDcan&idCap=202144&lawType=1",
-  :ADJUD_IFERCAT=> "https://contractaciopublica.gencat.cat/ecofin_pscp/AppJava/awardnotice.pscp?reqCode=searchDcan&idCap=203663&lawType=1"
-}
+require './setup'
+
+# aixo permet utilitzar .ya2yaml en comptes de .to_yaml, evitant les sortides
+# binaries d'aquest posant-ho tot en ascii (escapant els utf8)
+require 'ya2yaml'
+$KCODE = 'UTF8'
+
+################
+# Fakeweb Setup
+#
+unless @setup.online  # activate if not online
+  # monkey patch for fakeweb. Mechanize#read_timeout doesn't work ?!?
+  module FakeWeb
+    class StubSocket
+      def read_timeout=(*ignored)
+      end
+    end
+  end
+  FakeWeb.allow_net_connect=false # tots els accessos se simularan
+  up=UriPathname.new :base_dir => @setup.pdump_dir, :file_ext=> ".html"
+  dump_files = Dir[File.expand_path("*.html",@setup.pdump_dir)]
+  dump_files.each do |f|
+    uri = up.pathname_to_uri(f)
+    FakeWeb.register_uri :any, uri, :body=>f, :content_type=>"text/html"
+    #puts "#{uri} -> #{'OK' if FakeWeb.registered_uri?(:get, uri)}"
+  end
+  puts "Fakeweb: #{dump_files.size} URIs registered"
+end
+################
+
+################
+# Logger Setup
+#
+if @setup.log
+  log1 = Logger.new(@setup.log_file,'weekly')
+  log1.level = @setup.log_level
+  log2 = Logger.new(File.expand_path("../tmp/mechanize.log",File.dirname(__FILE__)),'weekly')
+  log2.level = @setup.log_level
+end
+################
+
+#################
+# WebDump Setup
+# (save webpages)
+if @setup.pdump
+  wdumper=WebDump.new :base_dir => @setup.pdump_dir, :file_ext => @setup.pdump_ext
+else
+  wdumper=nil
+end
+#################
+
+################
+# DataDump Setup
+# (save parsed data)
+if @setup.ddump
+  ddumper=Webscrutinizer::DataDump.new @setup.ddump_dir, @setup.ddump_format
+else
+  ddumper=nil
+end
+
+##################
+# SimpleMap Setup
+#
+if @setup.lookup
+  lookup=YAML.load_file(@setup.lookup_file)
+  #  puts "LOOKUP:\n"
+  #  p lookup.map
+  #  p lookup.reverse_data.to_a.sort {|a,b| a.to_s <=> b.to_s}
+  #  puts "\nDESCONEGUTS:\n"
+  #  p lookup.unmapped_keys.to_a.sort {|a,b| a.to_s <=> b.to_s}
+end
+##################
+
+######################
+# ThreadedAgent Setup
+#
+agent=Webscrutinizer::ThreadedAgent.new :maxthreads => @setup.num_threads, :logger => log1
+######################
+
+#######################
+# WebScrutinizer Setup
+#
+ws = Webscrutinizer::Scrutinizer.new(
+  :lookup=>lookup,
+  :agent=>agent,
+  :log=>log1,
+  :web_dump=> wdumper,
+  :data_dump=> ddumper
+) do |scr|
+
+  #LEVELS
+  @setup.seeds.to_hash.each do |name,uri|
+    scr.seed uri, :LIST_PARSER, name
+  end
+
+  # PARSERS
+  # parser de llistes de concursos
+  scr.define_parser :LIST_PARSER do
+    exps = compose(@page.search("dt a"),@page.search("dd")) do |itm1,itm2|
+      lnk = "https://contractaciopublica.gencat.cat/ecofin_pscp/AppJava/" + itm1['href']
+      lvl = Webscrutinizer::Level.new do |l|
+        l.uri = lnk
+        l.use_parser :DETAIL_PARSER, :_SELF
+      end
+      {
+        :DESCRIPCIO => clear_string(itm1.text),
+        :LNK => lnk,
+        :TIP_ANUNCI => itm2.text[/Esmen/] ? :ESMENA : :PUBLICACIO,
+        :DATA_ANUNC => itm2.text[/[\d\/]+ [\d:]*/m],
+        :_SUBLEVELS => [lvl]
+      }
+    end
+    ret = { :CONTENT => exps }
+    # mirem si hi ha siblings
+    if lnk = @page.link_with(:text => "Següent") # nil si no n'hi ha
+      lsibl = Webscrutinizer::Level.new do |l|
+        l.uri = "https://contractaciopublica.gencat.cat/ecofin_pscp/AppJava/"+lnk.href
+        l.use_parser :LIST_PARSER, :_SELF
+      end
+      ret[:SIBLINGS]=[lsibl]
+    end
+    ret
+  end
+
+  # @todo parsejar tambe el link a l'anunci (arxiu .zip que conté pdf i xml) que queda a la dreta.
+  # En alguns detalls no hi es.
+  # @todo el camp :DESCRIPCIO s'ha de diferenciar del que s'ha trobat al :LIST_PARSER
+  # perque pot ser un text bastant mes llarg explicant en mes profunditat l'anunci,
+  # des de les tasques que correspon el projecte a una esmena. Podriem anomenar-lo :DESCRIPCIO2
+  # (exemple https://contractaciopublica.gencat.cat/ecofin_pscp/AppJava/notice.pscp?reqCode=viewCtn&idDoc=3443442&)
+  # @todo la :DATA_OBERTURA_PL no s'aplica correctament
+  # per exemple https://contractaciopublica.gencat.cat/ecofin_pscp/AppJava/notice.pscp?reqCode=viewCn&advancedSearch=false&idDoc=3576092&
+  # @todo la imbricacio de key-values en els criteris (i potser altres) no esta ajustada
+  # veure https://contractaciopublica.gencat.cat/ecofin_pscp/AppJava/notice.pscp?reqCode=viewCn&advancedSearch=false&idDoc=3571838&
+  # @todo valorar la possibilitat d'aprofitar de que en el detall hi ha links de mes detalls
+  # a les esmenes o a l'anunci inicial ....
+  scr.define_parser :DETAIL_PARSER do
+    area = @page.search("#contingut")
+    # OPCIO 1: amb el metode from_to de mme_tools
+    #area.search("dt").each do |dt|
+    #  init_node=dt.at("./following-sibling::*")
+    #  end_node=dt.at("./following-sibling::dt[1]")
+    #  nodes = from_to(init_node, end_node,
+    #    :last_included? => false,
+    #    :max => 10) { |el|  el.at("./following-sibling::dd | ./following-sibling::dt") }
+    #  puts clear_string(dt.text)
+    #  nodes.each {|n| puts "\t#{clear_string(n.search("./text() | ./span/text()").to_s)}" }
+    #end
+    # OPCIO 2: amb el metode slice de nokogiri
+    details = {}
+    area.search("dt").each do |dt|
+      nodes = dt.search("./following-sibling::*")
+      init_index=nodes.index(dt.at("./following-sibling::*"))
+      end_index=nodes.index(dt.at("./following-sibling::dt[1]"))
+      nodes = nodes.slice(init_index, end_index - init_index) if end_index
+      text = nodes.map {|n| clear_string(n.search("./text() | ./span/text()").to_s, :encoding => 'ASCII')}.join(" / ")
+      details[clear_string(dt.text)]=text
+    end
+    # links a documents
+    docs = area.search(".destacat a").map do |item|
+      nam=item.text.strip
+      lnk="https://contractaciopublica.gencat.cat"+item['href']
+      {:NAM => nam, :LNK => lnk}
+    end
+    # un ultim document es l'anunci i la firma digital
+    if anunc=area.at(".document-detall-oferta a")
+      docs << {:NAM => "Anunci PDF i firma XML",
+        :LNK => "https://contractaciopublica.gencat.cat"+anunc['href']}
+    end
+    details[:DOCS] = docs unless docs.empty?
+    {
+      :CONTENT => details
+    }
+  end
+
+end
+#######################
+
+###########################
+# MAIN
+###########################
+ws.scrutinize #:maxpages => 25
+              #:seeds => @setup.seeds.ADJUD_DEF
+              
+#ws.report
+p ws.statistics
+###########################
+
+##################
+# save parsed data
+#
+if @setup.saveparsed
+  File.open(@setup.saveparsed_file,'w') do |f|
+    #YAML.dump(ws.receivers,f)
+    f.write ws.receivers.ya2yaml(:syck_compatible => true)
+  end
+end
+
+#####################
+# SimpleMap Teardown
+#
+if @setup.lookup
+  File.open(@setup.lookup_file,'w') do |f|
+    #YAML.dump(lookup,f)
+    f.write lookup.ya2yaml(:syck_compatible => true)
+  end
+end
+#####################
+
+################
+# Logger Teardown
+#
+if @setup.log
+  log1.close
+  log2.close
+end
+################

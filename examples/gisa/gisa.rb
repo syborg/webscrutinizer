@@ -3,6 +3,7 @@
 
 require './setup'
 
+require 'yaml'
 # aixo permet utilitzar .ya2yaml en comptes de .to_yaml, evitant les sortides
 # binaries d'aquest posant-ho tot en ascii (escapant els utf8)
 require 'ya2yaml'
@@ -475,8 +476,8 @@ p ws.statistics
 #
 if @setup.saveparsed
   File.open(@setup.saveparsed_file,'w') do |f|
-    #YAML.dump(ws.receivers,f)
-    f.write ws.receivers.ya2yaml(:syck_compatible => true)
+    YAML.dump(ws.receivers,f)
+    #f.write ws.receivers.ya2yaml(:syck_compatible => true)
   end
 end
 
@@ -485,8 +486,8 @@ end
 #
 if @setup.lookup
   File.open(@setup.lookup_file,'w') do |f|
-    #YAML.dump(lookup,f)
-    f.write lookup.ya2yaml(:syck_compatible => true)
+    YAML.dump(lookup,f)
+    #f.write lookup.ya2yaml(:syck_compatible => true)
   end
 end
 #####################

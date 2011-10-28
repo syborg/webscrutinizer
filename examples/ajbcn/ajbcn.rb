@@ -2,10 +2,11 @@
 # Marcel Massana 17-Sep-2011
 
 require './setup'
-
+require 'yaml'
 # aixo permet utilitzar .ya2yaml en comptes de .to_yaml, evitant les sortides
 # binaries d'aquest posant-ho tot en ascii (escapant els utf8)
 require 'ya2yaml'
+
 $KCODE = 'UTF8'
 
 ################
@@ -110,10 +111,10 @@ ws = Webscrutinizer::Scrutinizer.new(
         l.use_parser :DETAIL_PARSER, :_SELF
       end
       {
-        :EXP => exp.strip.upcase,
-        :TIPUS => itm1.text.strip,
-        :LNK => lnk,
-        :DESCRIPCIO => descr,
+        "exp" => exp.strip.upcase,
+        "tipus" => itm1.text.strip,
+        "lnk" => lnk,
+        "descr" => descr,
         :_SUBLEVELS => [sublvl] # for further details
       }
     end
@@ -138,7 +139,7 @@ ws = Webscrutinizer::Scrutinizer.new(
         k = @lookup[clau.text.strip]
         v = valor.text.gsub(/\s+/," ").strip
         #print_debug 1, "#{k}: ", v, v.to_yaml if (k==:PRESSUPOST_IVA or k==:PRESSUPOST_BASE)
-        {k.to_sym => v}
+        {k => v}
       else
         {}
       end
@@ -148,9 +149,9 @@ ws = Webscrutinizer::Scrutinizer.new(
     @page.search("li a").each_with_index do |item, i|
       k=item.text.strip
       v="http://w10.bcn.cat/APPS/gefconcursosWeb/"+item['href']
-      docs << {:NAM => k, :LNK => v}
+      docs << {"nam" => k, "lnk" => v}
     end
-    details[:DOCS]=docs unless docs.empty?
+    details["docs"]=docs unless docs.empty?
     # return
     {
       :CONTENT => details
@@ -175,8 +176,8 @@ p ws.statistics
 #
 if @setup.saveparsed
   File.open(@setup.saveparsed_file,'w') do |f|
-    #YAML.dump(ws.receivers,f)
-    f.write ws.receivers.ya2yaml(:syck_compatible => true)
+    YAML.dump(ws.receivers,f)
+    #f.write ws.receivers.ya2yaml
   end
 end
 
@@ -185,8 +186,8 @@ end
 #
 if @setup.lookup
   File.open(@setup.lookup_file,'w') do |f|
-    #YAML.dump(lookup,f)
-    f.write lookup.ya2yaml(:syck_compatible => true)
+    YAML.dump(lookup,f)
+    #f.write lookup.ya2yaml
   end
 end
 #####################

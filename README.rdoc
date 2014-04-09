@@ -18,6 +18,5 @@ TODO: Release 1.0.0!
 
 == Copyright
 
-Copyright (c) 2011 Marcel Massana. See LICENSE.txt for
-further details.
+Copyright (c) 2011 Marcel Massana. See LICENSE.txt for further details.
 

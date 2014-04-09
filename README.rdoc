@@ -1,6 +1,10 @@
 = webscrutinizer
 
-... Men at work
+Working on it ...
+
+TODO: Compatibilize with Watir::Webdriver to make use of actual browsers
+TODO: Redesign DSL
+TODO: Release 1.0.0!
 
 == Contributing to webscrutinizer
  

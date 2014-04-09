@@ -1,12 +1,16 @@
 # test_seed_pool
 # Marcel Massana 29-Sep-2011
 
-require 'rubygems'
+lib = File.expand_path('../lib')
+$: << lib unless $:.include? lib
+
 require 'webscrutinizer/data_dump'
-require 'test/unit'
+
+require 'rubygems'
+require 'minitest/autorun'
 require 'fileutils'
 
-class TC_DataDump < Test::Unit::TestCase
+class TC_DataDump < Minitest::Test
 
   def setup
     @testdir='tmp_datadump'
@@ -58,7 +62,7 @@ class TC_DataDump < Test::Unit::TestCase
     name = "llista_noms"
     [@item1, @item2, @item3].each {|i| dd.dump(i,receiver,name)}
     read_item = nil
-    File.open(dd.filepath(receiver, name),'r') { |f| read_item = YAML::load_stream(f).documents }
+    File.open(dd.filepath(receiver, name),'r') { |f| read_item = YAML::load_stream(f) }
     assert_equal [@item1, @item2, @item3], read_item
   end
 
@@ -70,7 +74,7 @@ class TC_DataDump < Test::Unit::TestCase
     name = "llista_noms"
     [@item1, @item2, @item3].each {|i| dd.dump(i,receiver,name)}
     read_item = nil
-    File.open(dd.filepath(receiver, name),'r') { |f| read_item = YAML::load_stream(f).documents }
+    File.open(dd.filepath(receiver, name),'r') { |f| read_item = YAML::load_stream(f) }
     assert_equal [@item1, @item2, @item3], read_item
   end
 

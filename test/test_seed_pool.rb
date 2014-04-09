@@ -1,11 +1,16 @@
 # test_seed_pool
 # Marcel Massana 24-Sep-2011
 
+lib = File.expand_path('../lib')
+$: << lib unless $:.include? lib
+
 require 'webscrutinizer/seed_pool'
-require 'test/unit'
+
+require 'rubygems'
+require 'minitest/autorun'
 
 
-class TC_SeedPool < Test::Unit::TestCase
+class TC_SeedPool < Minitest::Test
 
   def setup
     @sp = Webscrutinizer::SeedPool.new do |sp|

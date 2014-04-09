@@ -10,7 +10,7 @@ require 'yaml'
 require 'ya2yaml'
 require 'webscrutinizer/error'
 
-$KCODE = 'UTF8'
+#$KCODE = 'UTF8'
 
 module Webscrutinizer
 

@@ -1,6 +1,9 @@
 # Scrutinizing Expedients de la Generalitat de Catalunya
 # Marcel Massana 09-Oct-2011
 
+lib = File.expand_path('../../lib')
+$: << lib unless $:.include? lib
+
 require './setup'
 
 require 'yaml'
@@ -8,7 +11,7 @@ require 'yaml'
 # binaries d'aquest posant-ho tot en ascii (escapant els utf8)
 require 'ya2yaml'
 
-$KCODE = 'UTF8'
+#$KCODE = 'UTF8'
 
 ################
 # Fakeweb Setup

@@ -83,7 +83,7 @@ end
 
 # minim suport de utf-8 a Ruby 1.8, pero millor anar a Ruby 1.9
 require 'jcode' if RUBY_VERSION < '1.9'
-$KCODE = "u"
+#$KCODE = "u"
 # includes generics
 require 'yaml'
 require 'fakeweb'

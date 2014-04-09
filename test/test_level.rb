@@ -1,11 +1,16 @@
 # test_seed_pool
 # Marcel Massana 24-Sep-2011
 
+lib = File.expand_path('../lib')
+$: << lib unless $:.include? lib
+
 require 'webscrutinizer/level'
-require 'test/unit'
+
+require 'rubygems'
+require 'minitest/autorun'
 
 
-class TC_Level < Test::Unit::TestCase
+class TC_Level < Minitest::Test
 
   def setup
     @l = Webscrutinizer::Level.new "myuri" do |l|

@@ -13,9 +13,9 @@ module Webscrutinizer
     # is a symbol with the Logger object method to be called (:info, :warn,
     # :fatal, ...). See Logger.
     def print_log(logger_method, mssg)
-      Thread.critical = true
-      @log.__send__(logger_method, mssg)
-      Thread.critical = false
+      Thread.exclusive do
+        @log.__send__(logger_method, mssg)
+      end
     end
     
   end

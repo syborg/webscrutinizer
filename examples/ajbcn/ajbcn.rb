@@ -1,13 +1,16 @@
 # Scrutinizing Expedients de l'Ajuntament de Barcelona
 # Marcel Massana 17-Sep-2011
 
+lib = File.expand_path('../../lib')
+$: << lib unless $:.include? lib
+
 require './setup'
 require 'yaml'
 # aixo permet utilitzar .ya2yaml en comptes de .to_yaml, evitant les sortides
 # binaries d'aquest posant-ho tot en ascii (escapant els utf8)
 require 'ya2yaml'
 
-$KCODE = 'UTF8'
+# $KCODE = 'UTF8'
 
 ################
 # Fakeweb Setup

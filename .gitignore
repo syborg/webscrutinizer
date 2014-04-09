@@ -49,9 +49,11 @@ pkg
 
 # Netbeans
 nbproject
+
 # dirty tests (convention begin with pr_)
 pr_*
 # temporary files and logs
 tmp*
 *.yml
 *.log
+.fuse*

@@ -111,10 +111,10 @@ ws = Webscrutinizer::Scrutinizer.new(
         l.use_parser :DETAIL_PARSER, :_SELF
       end
       {
-        "desc" => clear_string(itm1.text),
-        "lnk" => lnk,
-        "TIP_ANUNCI" => itm2.text[/Esmen/] ? :ESMENA : :PUBLICACIO,
-        "date_publ" => itm2.text[/[\d\/]+ [\d:]*/m],
+        :DESCRIPCIO => clear_string(itm1.text),
+        :LNK => lnk,
+        :TIP_ANUNCI => itm2.text[/Esmen/] ? :ESMENA : :PUBLICACIO,
+        :DATA_ANUNC => itm2.text[/[\d\/]+ [\d:]*/m],
         :_SUBLEVELS => [lvl]
       }
     end
@@ -144,6 +144,17 @@ ws = Webscrutinizer::Scrutinizer.new(
   # a les esmenes o a l'anunci inicial ....
   scr.define_parser :DETAIL_PARSER do
     area = @page.search("#contingut")
+    # OPCIO 1: amb el metode from_to de mme_tools
+    #area.search("dt").each do |dt|
+    #  init_node=dt.at("./following-sibling::*")
+    #  end_node=dt.at("./following-sibling::dt[1]")
+    #  nodes = from_to(init_node, end_node,
+    #    :last_included? => false,
+    #    :max => 10) { |el|  el.at("./following-sibling::dd | ./following-sibling::dt") }
+    #  puts clear_string(dt.text)
+    #  nodes.each {|n| puts "\t#{clear_string(n.search("./text() | ./span/text()").to_s)}" }
+    #end
+    # OPCIO 2: amb el metode slice de nokogiri
     details = {}
     area.search("dt").each do |dt|
       nodes = dt.search("./following-sibling::*")
@@ -151,20 +162,20 @@ ws = Webscrutinizer::Scrutinizer.new(
       end_index=nodes.index(dt.at("./following-sibling::dt[1]"))
       nodes = nodes.slice(init_index, end_index - init_index) if end_index
       text = nodes.map {|n| clear_string(n.search("./text() | ./span/text()").to_s, :encoding => 'ASCII')}.join(" / ")
-      details[@lookup[clear_string(dt.text)]]=text
+      details[clear_string(dt.text)]=text
     end
     # links a documents
     docs = area.search(".destacat a").map do |item|
       nam=item.text.strip
       lnk="https://contractaciopublica.gencat.cat"+item['href']
-      {"nam" => nam, "lnk" => lnk}
+      {:NAM => nam, :LNK => lnk}
     end
     # un ultim document es l'anunci i la firma digital
     if anunc=area.at(".document-detall-oferta a")
       docs << {:NAM => "Anunci PDF i firma XML",
         :LNK => "https://contractaciopublica.gencat.cat"+anunc['href']}
     end
-    details["docs"] = docs unless docs.empty?
+    details[:DOCS] = docs unless docs.empty?
     {
       :CONTENT => details
     }
@@ -176,7 +187,8 @@ end
 ###########################
 # MAIN
 ###########################
-ws.scrutinize #:maxpages => 50
+
+ws.scrutinize #:maxpages => 25
               #:seeds => @setup.seeds.ADJUD_DEF
               
 #ws.report
@@ -188,8 +200,8 @@ p ws.statistics
 #
 if @setup.saveparsed
   File.open(@setup.saveparsed_file,'w') do |f|
-    YAML.dump(ws.receivers,f)
-    #f.write ws.receivers.ya2yaml(:syck_compatible => true)
+    #YAML.dump(ws.receivers,f)
+    f.write ws.receivers.ya2yaml(:syck_compatible => true)
   end
 end
 
@@ -198,8 +210,8 @@ end
 #
 if @setup.lookup
   File.open(@setup.lookup_file,'w') do |f|
-    YAML.dump(lookup,f)
-    #f.write lookup.ya2yaml(:syck_compatible => true)
+    #YAML.dump(lookup,f)
+    f.write lookup.ya2yaml(:syck_compatible => true)
   end
 end
 #####################

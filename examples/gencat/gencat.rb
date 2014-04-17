@@ -175,19 +175,20 @@ ws = Webscrutinizer::Scrutinizer.new(
       docs << {:NAM => "Anunci PDF i firma XML",
         :LNK => "https://contractaciopublica.gencat.cat"+anunc['href']}
     end
-
+### FIX? experiments
     details[:DOCS] = docs unless docs.empty?
     {
       :CONTENT => details
     }
   end
-
+###
 end
 #######################
 
 ###########################
 # MAIN
 ###########################
+
 ws.scrutinize #:maxpages => 25
               #:seeds => @setup.seeds.ADJUD_DEF
               

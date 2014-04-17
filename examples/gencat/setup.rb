@@ -84,10 +84,8 @@ end
 # Rest of required files and setups
 
 # minim suport de utf-8 a Ruby 1.8, pero millor anar a Ruby 1.9
-if RUBY_VERSION < '1.9'
-  require 'jcode'
-  $KCODE = "u"
-end
+require 'jcode' if RUBY_VERSION < '1.9'
+#$KCODE = "u"
 # includes generics
 require 'yaml'
 require 'fakeweb'
